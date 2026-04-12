@@ -1,0 +1,270 @@
+Metadata-Version: 2.4
+Name: sadbert
+Version: 0.1.0
+Summary: Stereotype-content analysis with fine-tuned DistilBERT models (SADCAT framework)
+Author-email: Xander Deanhardt <xanderd24@uchicago.edu>
+License: SADBERT Software License
+        Copyright (c) 2026 Xander Deanhardt
+        
+        Permission is hereby granted, free of charge, to any person obtaining a copy
+        of this software and associated documentation files (the "Software"), to deal
+        in the Software without restriction, including without limitation the rights
+        to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+        copies of the Software, and to permit persons to whom the Software is
+        furnished to do so, subject to the following conditions:
+        
+        1. The above copyright notice and this permission notice shall be included in
+           all copies or substantial portions of the Software.
+        
+        2. RESERVATION OF ACADEMIC PUBLICATION RIGHTS: Xander Deanhardt retains
+           exclusive rights to publish, author, and submit academic research papers,
+           journal articles, conference proceedings, theses, dissertations, and other
+           scholarly works that present the design, architecture, training methodology,
+           fine-tuning procedures, evaluation, or scientific contributions of this
+           Software or its underlying models as original research contributions.
+           Users of the Software may freely publish work in which this Software is
+           used as a tool or cited as a resource, but may not publish work that claims
+           the Software's methodology, training procedures, or model architecture as
+           the user's own original contributions without prior written permission from
+           Xander Deanhardt.
+        
+        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+        IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+        FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+        AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+        LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+        OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+        SOFTWARE.
+        
+Project-URL: Homepage, https://github.com/XanderD24/sadbert
+Project-URL: Repository, https://github.com/XanderD24/sadbert
+Project-URL: Bug Tracker, https://github.com/XanderD24/sadbert/issues
+Project-URL: HuggingFace, https://huggingface.co/XanderD24
+Keywords: NLP,stereotype,social cognition,SADCAT,DistilBERT,transformers,sentiment analysis
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Science/Research
+Classifier: Topic :: Scientific/Engineering :: Artificial Intelligence
+Classifier: Topic :: Text Processing :: Linguistic
+Classifier: License :: Other/Proprietary License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: torch>=2.0.0
+Requires-Dist: transformers>=4.35.0
+Requires-Dist: pandas>=2.0.0
+Requires-Dist: numpy>=1.24.0
+Requires-Dist: huggingface_hub>=0.19.0
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0; extra == "dev"
+Requires-Dist: pytest-cov>=4.0; extra == "dev"
+Requires-Dist: black>=23.0; extra == "dev"
+Requires-Dist: ruff>=0.1.0; extra == "dev"
+Requires-Dist: build>=1.0; extra == "dev"
+Requires-Dist: twine>=4.0; extra == "dev"
+Dynamic: license-file
+
+# SADBERT
+
+**Stereotype-content Analysis with DistilBERT** — a Python package for identifying and characterising stereotype-relevant dimensions in natural language text, based on the SADCAT (Stereotype-Associated Dictionary of Content and Affect with Traits) framework.
+
+## What it does
+
+Given a word or phrase, SADBERT predicts:
+
+| Output column | Description |
+|---|---|
+| `category` | Stereotype-content dimension (e.g. *Warmth*, *Competence*) |
+| `probability` | Confidence of the category classifier |
+| `valence` | Direction within the category: `1` = positive, `0` = neutral, `−1` = negative |
+| `valence probability` | Confidence of the valence prediction |
+| `interpretation` | Human-readable label (e.g. *"Warm"*, *"Incompetent"*, *"Moral"*) |
+
+### Categories detected
+
+**Major** (with valence): Warmth · Competence · Sociability · Morality · Ability · Assertiveness · Status · Beliefs · health · deviance · beauty · Politics · Religion
+
+**Minor** (category only, no valence): emotions · Geography · Appearance · occupation · socialgroups · inhabitant · country · relative · insults · stem · humanities · art · Lacksknowledge · fortune · clothing · bodpart · bodprop · skin · bodcov · beliefsother · Other\_large · Other
+
+---
+
+## Installation
+
+```bash
+pip install sadbert
+```
+
+> **Note:** On first use, SADBERT automatically downloads ~2 GB of model weights from the HuggingFace Hub. These are cached locally in `~/.cache/huggingface/` and do not need to be re-downloaded on subsequent runs.
+
+### GPU / Apple Silicon
+
+SADBERT auto-detects CUDA and Apple MPS. To use a specific device, instantiate `SADBERT` directly:
+
+```python
+from sadbert import SADBERT
+model = SADBERT(device="cuda")   # or "mps", "cpu"
+```
+
+---
+
+## Quick Start
+
+```python
+import sadbert
+
+# Single word — returns a DataFrame
+df = sadbert.get_stereotype_content("honest")
+print(df)
+
+# Multiple words — stacked into one DataFrame (default)
+df = sadbert.get_stereotype_content(["honest", "lazy", "senator"])
+print(df)
+
+# Multiple words — one DataFrame per word
+results = sadbert.get_stereotype_content(["honest", "lazy"], stacked=False)
+print(results["honest"])
+print(results["lazy"])
+```
+
+### Example output
+
+```
+>>> sadbert.get_stereotype_content("honest")
+
+   category  probability  valence  valence probability interpretation
+0    Warmth        0.912      1.0               0.876           Warm
+1  Morality        0.843      1.0               0.791          Moral
+```
+
+---
+
+## API reference
+
+### `sadbert.get_stereotype_content(text, stacked=True)`
+
+Module-level convenience function. Uses a shared, lazily-initialised `SADBERT` instance.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `text` | `str` or `list[str]` | Word(s) or phrase(s) to classify |
+| `stacked` | `bool` | `True` (default): return one combined DataFrame with a `"text"` column. `False`: return a `dict[str, DataFrame]`. For single string input with `stacked=False`, returns the DataFrame directly. |
+
+---
+
+### `sadbert.SADBERT(device=None, batch_size=32, load_models=True)`
+
+Instantiate your own SADBERT object for full control.
+
+```python
+from sadbert import SADBERT
+
+model = SADBERT(
+    device="cuda",     # "cuda" | "mps" | "cpu" | None (auto-detect)
+    batch_size=64,     # increase for faster throughput on GPU
+    load_models=True,  # set False to defer model loading to first call
+)
+
+results = model.get_stereotype_content(["nurse", "engineer", "senator"])
+```
+
+---
+
+## Model architecture
+
+SADBERT uses a three-stage ensemble:
+
+```
+Input text
+    │
+    ▼
+┌─────────────────────────────────────────────────────┐
+│  Stage 1 · Master model (SADBERT_master_model)      │
+│  Multi-label DistilBERT, 35 output classes          │
+│  Softmax probabilities compared against per-class   │
+│  Youden-J thresholds → candidate categories         │
+└─────────────────────────────────────────────────────┘
+    │  candidate categories
+    ▼
+┌─────────────────────────────────────────────────────┐
+│  Stage 2 · Classifier heads (SADBERT_{cat}_classifier) │
+│  One binary DistilBERT per category                 │
+│  Veto gate — keeps only categories confirmed by     │
+│  both master model and dedicated head               │
+└─────────────────────────────────────────────────────┘
+    │  confirmed categories + probabilities
+    ▼
+┌─────────────────────────────────────────────────────┐
+│  Stage 3 · Sentiment models (SADBERT_{cat}_sentiment)  │
+│  One 3-class DistilBERT per major category          │
+│  Predicts negative / neutral / positive valence     │
+└─────────────────────────────────────────────────────┘
+    │
+    ▼
+  Results DataFrame
+```
+
+All models are hosted on HuggingFace at [huggingface.co/XanderD24](https://huggingface.co/XanderD24).
+
+---
+
+## Building from source
+
+```bash
+git clone https://github.com/XanderD24/sadbert.git
+cd sadbert
+
+# Install in editable mode with dev dependencies
+pip install -e ".[dev]"
+
+# Run tests
+pytest
+```
+
+### Adding ROC_dict.pkl before publishing
+
+`ROC_dict.pkl` (per-category probability thresholds) is **required** but not included in the repository for size reasons. Copy it into the data directory before building the wheel:
+
+```bash
+cp /path/to/ROC_dict.pkl sadbert/data/ROC_dict.pkl
+```
+
+Then build:
+
+```bash
+python -m build        # produces dist/sadbert-0.1.0.tar.gz and .whl
+twine check dist/*     # sanity-check before uploading
+twine upload dist/*    # publish to PyPI
+```
+
+---
+
+## Citation
+
+If you use SADBERT in research, please cite the underlying SADCAT framework:
+
+```
+@misc{sadbert2025,
+  author = {Deanhardt, Xander},
+  title  = {{SADBERT}: Stereotype-content Analysis with {DistilBERT}},
+  year   = {2025},
+  url    = {https://github.com/XanderD24/sadbert},
+}
+```
+
+---
+## Citation of Original Work
+All data used to fine-tune these models was taken from the SADCAT dictionary, published by Gandalf Nicolas, Xuecunzi Bai, and Susan T Fiske, and hosted on Github by Gandalf Nicolas. It was first published in this journal:
+
+Nicolas, Gandalf, et al. “Comprehensive Stereotype Content Dictionaries Using a Semi‐Automated Method.” European Journal of Social Psychology, vol. 51, no. 1, Feb. 2021, pp. 178–196, https://doi.org/10.1002/ejsp.2724.
+
+Github Link = {https://github.com/gandalfnicolas/SADCAT/tree/master}
+
+OSF Repository = {https://osf.io/yx45f/}
+## License
+
+MIT License — see [LICENSE](LICENSE) for details.

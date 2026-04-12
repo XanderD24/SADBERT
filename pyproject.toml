@@ -1,0 +1,94 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Project metadata
+# ─────────────────────────────────────────────────────────────────────────────
+[project]
+name            = "sadbert"
+version         = "0.1.0"
+description     = "Stereotype-content analysis with fine-tuned DistilBERT models (SADCAT framework)"
+readme          = "README.md"
+license         = { file = "LICENSE" }
+requires-python = ">=3.9"
+
+authors = [
+  { name = "Xander Deanhardt", email = "xanderd24@uchicago.edu" },
+]
+
+keywords = [
+  "NLP", "stereotype", "social cognition", "SADCAT",
+  "DistilBERT", "transformers", "sentiment analysis",
+]
+
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Text Processing :: Linguistic",
+  "License :: Other/Proprietary License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Operating System :: OS Independent",
+]
+
+# ── Runtime dependencies ──────────────────────────────────────────────────────
+dependencies = [
+  "torch>=2.0.0",
+  "transformers>=4.35.0",
+  "pandas>=2.0.0",
+  "numpy>=1.24.0",
+  "huggingface_hub>=0.19.0",
+]
+
+# ── Optional extras ───────────────────────────────────────────────────────────
+[project.optional-dependencies]
+dev = [
+  "pytest>=7.0",
+  "pytest-cov>=4.0",
+  "black>=23.0",
+  "ruff>=0.1.0",
+  "build>=1.0",
+  "twine>=4.0",
+]
+
+# ── URLs ──────────────────────────────────────────────────────────────────────
+[project.urls]
+Homepage      = "https://github.com/XanderD24/sadbert"
+Repository    = "https://github.com/XanderD24/sadbert"
+"Bug Tracker" = "https://github.com/XanderD24/sadbert/issues"
+"HuggingFace" = "https://huggingface.co/XanderD24"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Package discovery & data files
+# ─────────────────────────────────────────────────────────────────────────────
+[tool.setuptools.packages.find]
+where = ["."]          # look in the repo root
+include = ["sadbert*"] # include sadbert and sadbert.data
+
+[tool.setuptools.package-data]
+# Bundle the static .pkl files so they are included in the wheel
+"sadbert.data" = ["*.pkl"]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Tool configuration
+# ─────────────────────────────────────────────────────────────────────────────
+[tool.black]
+line-length    = 88
+target-version = ["py39", "py310", "py311"]
+
+[tool.ruff]
+line-length = 88
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths    = ["tests"]
+addopts      = "-v --tb=short"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]

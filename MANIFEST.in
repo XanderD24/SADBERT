@@ -1,0 +1,14 @@
+# Include the bundled data files in source distributions (sdist)
+recursive-include sadbert/data *.pkl
+
+# Include documentation and metadata
+include README.md
+include LICENSE
+include pyproject.toml
+include requirements.txt
+
+# Exclude build artifacts and caches
+exclude .gitignore
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]
+recursive-exclude * .DS_Store
