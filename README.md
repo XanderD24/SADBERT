@@ -154,22 +154,6 @@ pip install -e ".[dev]"
 pytest
 ```
 
-### Adding ROC_dict.pkl before publishing
-
-`ROC_dict.pkl` (per-category probability thresholds) is **required** but not included in the repository for size reasons. Copy it into the data directory before building the wheel:
-
-```bash
-cp /path/to/ROC_dict.pkl sadbert/data/ROC_dict.pkl
-```
-
-Then build:
-
-```bash
-python -m build        # produces dist/sadbert-0.1.0.tar.gz and .whl
-twine check dist/*     # sanity-check before uploading
-twine upload dist/*    # publish to PyPI
-```
-
 ---
 
 ## Citation
