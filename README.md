@@ -175,9 +175,9 @@ All data used to fine-tune these models was taken from the SADCAT dictionary, pu
 
 Nicolas, Gandalf, et al. “Comprehensive Stereotype Content Dictionaries Using a Semi‐Automated Method.” European Journal of Social Psychology, vol. 51, no. 1, Feb. 2021, pp. 178–196, https://doi.org/10.1002/ejsp.2724.
 
-Github Link = {https://github.com/gandalfnicolas/SADCAT/tree/master}
+Github Link = https://github.com/gandalfnicolas/SADCAT/tree/master
 
-OSF Repository = {https://osf.io/yx45f/}
+OSF Repository = https://osf.io/yx45f/
 ## License
 
 MIT License — see [LICENSE](LICENSE) for details.
