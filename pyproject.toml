@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 # ─────────────────────────────────────────────────────────────────────────────
 [project]
 name            = "sadbert"
-version         = "0.1.0"
+version         = "0.1.1.1"
 description     = "Stereotype-content analysis with fine-tuned DistilBERT models (SADCAT framework)"
 readme          = "README.md"
 license         = { file = "LICENSE" }

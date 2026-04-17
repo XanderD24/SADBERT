@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: sadbert
-Version: 0.1.0
+Version: 0.1.1.1
 Summary: Stereotype-content analysis with fine-tuned DistilBERT models (SADCAT framework)
 Author-email: Xander Deanhardt <xanderd24@uchicago.edu>
 License: SADBERT Software License
@@ -212,34 +212,9 @@ All models are hosted on HuggingFace at [huggingface.co/XanderD24](https://huggi
 
 ---
 
-## Building from source
 
-```bash
-git clone https://github.com/XanderD24/sadbert.git
-cd sadbert
 
-# Install in editable mode with dev dependencies
-pip install -e ".[dev]"
 
-# Run tests
-pytest
-```
-
-### Adding ROC_dict.pkl before publishing
-
-`ROC_dict.pkl` (per-category probability thresholds) is **required** but not included in the repository for size reasons. Copy it into the data directory before building the wheel:
-
-```bash
-cp /path/to/ROC_dict.pkl sadbert/data/ROC_dict.pkl
-```
-
-Then build:
-
-```bash
-python -m build        # produces dist/sadbert-0.1.0.tar.gz and .whl
-twine check dist/*     # sanity-check before uploading
-twine upload dist/*    # publish to PyPI
-```
 
 ---
 

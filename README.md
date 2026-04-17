@@ -85,6 +85,82 @@ Module-level convenience function. Uses a shared, lazily-initialised `SADBERT` i
 
 ---
 
+### `sadbert.predict_individual_types(text, content_type=None, head_type=None, manual_specification=None, stacked=True)`
+
+Run specific model heads against specific categories, without going through the full three-stage pipeline. Useful when you already know which categories you want to probe, or when you want classifier and sentiment scores independently.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `text` | `str` or `list[str]` | Word(s) or phrase(s) to classify |
+| `content_type` | `str`, `list[str]`, or `None` | Category name(s) to analyse (e.g. `"Warmth"`, `["Warmth", "Competence"]`). Case-insensitive. |
+| `head_type` | `str`, `list[str]`, or `None` | Which head(s) to run: `"classifier"`, `"sentiment"`, or both. Sentiment heads are silently skipped for minor categories (which have no valence model). |
+| `manual_specification` | `list[tuple[str, str]]` or `None` | Explicit `(category, head_type)` pairs, e.g. `[("morality", "classifier"), ("warmth", "sentiment")]`. Can be combined with `content_type` / `head_type`. |
+| `stacked` | `bool` | `True` (default): one combined DataFrame. `False`: `dict[str, DataFrame]` keyed by input text. |
+
+At least one of `content_type`, `head_type`, or `manual_specification` must be provided.
+
+**Output columns**
+
+| Column | Description |
+|---|---|
+| `text` | Source text |
+| `category` | Stereotype-content dimension |
+| `model type` | `"classifier"` or `"sentiment"` |
+| `probability` | For classifiers: probability of belonging to the category. For sentiment: full `[neg, neutral, pos]` probability vector. |
+| `interpretation` | Classifier: `"Belongs to this Category"` / `"Does not Belong to this Category"`. Sentiment: human-readable valence label. |
+
+**Examples**
+
+```python
+import sadbert
+
+# Probe two categories with only the classifier head
+result = sadbert.predict_individual_types(
+    text=["honest", "lazy"],
+    content_type=["Warmth", "Morality"],
+    head_type="classifier",
+)
+print(result)
+
+# Run both classifier and sentiment for one category
+result = sadbert.predict_individual_types(
+    text=["warm", "cold"],
+    content_type="Warmth",
+    head_type=["classifier", "sentiment"],
+)
+print(result)
+
+# Run the sentiment head across all major categories
+result = sadbert.predict_individual_types(
+    text="aggressive",
+    head_type="sentiment",   # content_type omitted → runs all applicable categories
+)
+print(result)
+
+# Explicit pairs via manual_specification
+result = sadbert.predict_individual_types(
+    text=["honest", "deceptive"],
+    manual_specification=[
+        ("morality", "classifier"),
+        ("morality", "sentiment"),
+    ],
+)
+print(result)
+
+# Unstacked — one DataFrame per input word
+result = sadbert.predict_individual_types(
+    text=["honest", "lazy"],
+    content_type="Competence",
+    head_type="classifier",
+    stacked=False,
+)
+print(result["honest"])
+```
+
+Models are downloaded on first use and cached; only the heads you request are loaded into memory, making this significantly lighter than the full pipeline when you need targeted predictions.
+
+---
+
 ### `sadbert.SADBERT(device=None, batch_size=32, load_models=True)`
 
 Instantiate your own SADBERT object for full control.
@@ -141,18 +217,9 @@ All models are hosted on HuggingFace at [huggingface.co/XanderD24](https://huggi
 
 ---
 
-## Building from source
 
-```bash
-git clone https://github.com/XanderD24/sadbert.git
-cd sadbert
 
-# Install in editable mode with dev dependencies
-pip install -e ".[dev]"
 
-# Run tests
-pytest
-```
 
 ---
 
@@ -175,9 +242,9 @@ All data used to fine-tune these models was taken from the SADCAT dictionary, pu
 
 Nicolas, Gandalf, et al. “Comprehensive Stereotype Content Dictionaries Using a Semi‐Automated Method.” European Journal of Social Psychology, vol. 51, no. 1, Feb. 2021, pp. 178–196, https://doi.org/10.1002/ejsp.2724.
 
-Github Link = https://github.com/gandalfnicolas/SADCAT/tree/master
+Github Link = {https://github.com/gandalfnicolas/SADCAT/tree/master}
 
-OSF Repository = https://osf.io/yx45f/
+OSF Repository = {https://osf.io/yx45f/}
 ## License
 
 MIT License — see [LICENSE](LICENSE) for details.

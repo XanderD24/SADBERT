@@ -52,7 +52,7 @@ MAJOR_CATS: List[str] = [
     "Assertiveness", "Status", "Beliefs", "health", "deviance",
     "beauty", "Politics", "Religion",
 ]
-
+sent_check: List[str] = [c.lower() for c in MAJOR_CATS]
 MINOR_CATS: List[str] = [
     "emotions", "Geography", "Appearance", "occupation", "socialgroups",
     "inhabitant", "country", "relative", "insults", "stem", "humanities",
@@ -62,13 +62,17 @@ MINOR_CATS: List[str] = [
 
 ALL_CATS: List[str] = MAJOR_CATS + MINOR_CATS
 
+HF_NAMES = {n.lower() : n for n in ALL_CATS}
+
 # Sentiment model label → direction value (from valence fine-tuning)
 #   0 → negative (-1), 1 → neutral (0), 2 → positive (+1)
 _LABEL_TO_DIR: Dict[int, int] = {0: -1, 1: 0, 2: 1}
-
+# Classifier Map: mapping the output of the classifier heads for individual calls
+CLASS_MAP  = {0: "Does not Belong to this Category",
+              1: "Belongs to this Category"} 
 # ── Output column names ───────────────────────────────────────────────────────
 _COLS = ["category", "probability", "valence", "valence probability", "interpretation"]
-
+IND_COLS = ["text id","text", "category", "model type", "probability", "interpretation"]
 
 # ─────────────────────────────────────────────────────────────────────────────
 # SADBERT class
@@ -202,7 +206,34 @@ class SADBERT:
             and not (isinstance(cat, float) and math.isnan(cat))
             and str(cat) != "nan"
         }
+    def load_individual_head(self, category: str, head_type: str) -> None:
+        """Download an individual model head if not already loaded.
 
+        Also ensures the shared tokeniser is available, so this method can be
+        used independently of :meth:`_load_models`.
+        """
+        # Ensure the tokeniser is available for later inference
+        if self.tokenizer is None:
+            master_repo = f"{_HF_USER}/SADBERT_master_model"
+            self.tokenizer = AutoTokenizer.from_pretrained(master_repo)
+
+        cat = category.lower()
+        ht = head_type.lower()
+
+        if ht == "classifier":
+            if cat not in self.classifier_heads:
+                self.classifier_heads[cat] = self._load_model(
+                    f"{_HF_USER}/SADBERT_{HF_NAMES[cat]}_classifier"
+                )
+        elif ht == "sentiment":
+            if cat not in self.sentiment_models:
+                self.sentiment_models[cat] = self._load_model(
+                    f"{_HF_USER}/SADBERT_{HF_NAMES[cat]}_sentiment"
+                )
+        else:
+            raise ValueError(
+                f"head_type must be 'classifier' or 'sentiment', got '{head_type}'"
+            )
     @staticmethod
     def _load_roc_dict() -> Dict[str, float]:
         """Load per-category probability thresholds from bundled ROC_dict.pkl."""
@@ -257,7 +288,11 @@ class SADBERT:
         for start in range(0, len(texts), self.batch_size):
             batch = texts[start : start + self.batch_size]
             inputs = self._tokenize(batch)
-            inputs = {k: v.to(self.device) for k, v in inputs.items()}
+            inputs = {
+                k: v.to(self.device)
+                for k, v in inputs.items()
+                if k != "token_type_ids"   # DistilBERT has no token_type_ids
+            }
             with torch.no_grad():
                 logits = model(**inputs).logits
             all_probs.append(torch.softmax(logits, dim=-1).cpu())
@@ -346,7 +381,7 @@ class SADBERT:
         cat_to_text_idxs: Dict[str, List[int]] = defaultdict(list)
         for idx, cats in all_candidates.items():
             for cat in cats:
-                cat_to_text_idxs[cat].append(idx)
+                cat_to_text_idxs[cat].append(idx) #creates one entry for every word category pair
 
         # confirmed[text_idx] = list of (category, classifier_prob)
         confirmed: Dict[int, List[tuple]] = defaultdict(list)
@@ -469,7 +504,120 @@ class SADBERT:
         return pd.DataFrame(
             columns=["text"] + _COLS
         )
+    def predict_individual_types(
+        self,
+        text: Union[str, List[str]],
+        content_type: Union[str, List[str], None] = None,
+        head_type: Union[str, List[str], None] = None,
+        manual_specification: Union[List[tuple[str, str]], None] = None,
+        stacked: bool = True,
+    ) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:
+        """
+    Classify manually specified categories of stereotype content for all words tiven
 
+    Parameters
+    ----------
+    text : str | list[str]
+        A single phrase/word or a list of phrases/words to analyse.
+    stacked : bool
+        - ``True`` (default): return a single DataFrame with all results
+            plus a ``"text"`` column identifying the source text.
+        - ``False``: return a ``dict[str, DataFrame]`` mapping each input
+            text to its own results table.  For a single string input,
+            returns the DataFrame directly.
+    content_type: str | list[str]
+        List of types of stereotype content to analyze for,
+    head_type: str | List|str
+        List of types of classifier heads to call: either classifier, sentiment, or both
+    manual specification: list[tuple] : a list of content and head type pairs. if specified, will go through and classify each pair only.
+
+    Returns
+    -------
+    pd.DataFrame
+        When *stacked* is ``True`` or input is a single string with
+        *stacked* ``False``.
+    dict[str, pd.DataFrame]
+        When *stacked* is ``False`` and input is a list.
+
+    
+    """
+        # Formatting the text types to align with the rest of the code
+        if type(text) == str:
+            text = [text]
+        text = list(dict.fromkeys(text))
+        if type(content_type) == str:
+            content_type = [content_type]
+        if type(head_type) == str:
+            head_type = [head_type]
+        texttoid = {t: i for i, t in enumerate(text)}
+
+        # Creating a list of tuples called model_deck for the function to iterate through
+        if content_type is None and head_type is None and manual_specification is None:
+            raise ValueError(
+                "Please specify either the categories you want to get content for, "
+                "the type of head you want to call, a combination of both, or manually "
+                "specify the set of model heads you want to call"
+            )
+        if content_type is not None and head_type is not None:
+            md1 = [(c.lower(), h) for c in content_type for h in head_type]
+        elif content_type is not None and head_type is None:
+            md1 = [(c.lower(), h) for c in content_type for h in ["classifier", "sentiment"]]
+        elif head_type is not None:
+            md1 = [(c.lower(), h) for c in ALL_CATS for h in head_type]
+        else:
+            md1 = []
+        md2 = manual_specification if manual_specification is not None else []
+        # Use a list comprehension to filter — never mutate a list while iterating it
+        model_deck = [
+            mod for mod in set(md1 + md2)
+            if not (mod[1] == "sentiment" and mod[0] not in sent_check)
+        ]
+
+        # Load each required head (also loads the tokeniser if needed)
+        for cat, mtype in model_deck:
+            self.load_individual_head(cat, mtype)
+
+        # Tokeniser is guaranteed to be loaded now
+        assert self.tokenizer is not None
+        rows = []
+        '''running each model and storing results in rows'''
+        for cat, mtype in model_deck:
+            if mtype == "classifier":
+                model = self.classifier_heads[cat]
+                head_probs = self._batch_forward(model, text) # type: ignore[call-arg]
+                pos_probs = head_probs[:, 1].tolist()
+                predictions = [int(np.round(p)) for p in pos_probs]
+                interps = [CLASS_MAP[p] for p in predictions]
+                for i in range(0, len(text)):
+                    rows.append({
+                        "text id" : texttoid[text[i]],
+                        "text" : text[i],
+                        "category" : cat,
+                        "model type" : mtype,
+                        "probability" : pos_probs[i],
+                        "interpretation" : CLASS_MAP[predictions[i]]
+                    })
+            elif mtype == "sentiment":
+                model = self.sentiment_models[cat]
+                head_probs = self._batch_forward(model, text) # type: ignore[call-arg]
+                v_probs = head_probs.tolist()
+                predictions = [np.argmax(p) for p in v_probs]
+                interps = [self._interpretation_dict.get(HF_NAMES[cat], {}).get(p, "Unknown") for p in predictions]
+                for i in range(0, len(text)):
+                    rows.append({
+                        "text id" : texttoid[text[i]],
+                        "text" : text[i],
+                        "category" : cat,
+                        "model type" : mtype,
+                        "probability" : v_probs[i],
+                        "interpretation" : interps[i]
+                    })
+        results = pd.DataFrame(rows, columns= IND_COLS)
+        results = results.sort_values(by=["text id", "category", "model type"], ascending=True).drop(columns="text id")
+        if stacked == False:
+            dict_results = {t : results[results["text"] == t].drop(columns = "text") for t in text}
+            return dict_results
+        return results
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Module-level convenience API
@@ -540,4 +688,15 @@ def get_stereotype_content(
     ...
     """
     return _get_default_instance().get_stereotype_content(text, stacked)
+def predict_individual_types(
+    text: Union[str, List[str]],
+    content_type: Union[str, List[str], None] = None,
+    head_type: Union[str, List[str], None] = None,
+    manual_specification: Union[List[tuple[str, str]], None] = None,
+    stacked: bool = True,
+) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:
+    """Module-level convenience wrapper around :meth:`SADBERT.predict_individual_types`."""
+    return _get_default_instance().predict_individual_types(
+        text, content_type, head_type, manual_specification, stacked
+    )
 print("sadbert.core module loaded ✓")

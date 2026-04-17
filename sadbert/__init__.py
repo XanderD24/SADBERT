@@ -21,14 +21,15 @@ Or use the class directly for more control:
 from .core import (
     SADBERT,
     get_stereotype_content,
+    predict_individual_types,
     ALL_CATS,
     MAJOR_CATS,
     MINOR_CATS,
 )
-
-__version__ = "0.1.0"
+from importlib.metadata import version
+__version__ = version("sadbert")
 __author__  = "Xander Deanhardt"
-__email__   = "xanderd24@uchicago.edu"
+__email__   = "xanderdeanhardt24@gmail.com"
 __license__ = "MIT"
 
 __all__ = [
